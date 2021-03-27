@@ -1,0 +1,867 @@
+---
+title:  \vskip1em Exploratory data analysis of the pre-election polls of the European election 2019 as well as an evaluation of their predictive power 
+author: \vskip1.5em Anna Franziska Bothe \vskip0.01em (576309) 
+header-includes:
+- \usepackage{titling}
+- \preauthor{\begin{center}\LARGE\vskip2em\includegraphics[width=6cm]{HUlogo.png}\\[\bigskipamount]}
+- \postauthor{\end{center}}
+- \usepackage{float} 
+- \floatplacement{figure}{H} #make every figure with caption = h
+- \usepackage{setspace}
+documentclass: article
+geometry: margin=1.1in
+output: 
+  pdf_document:
+    number_sections: true
+    highlight: tango
+    citation_package: natbib
+    fig_caption: yes
+    keep_tex: yes
+---
+[/]: # (date: "`r format(Sys.time(), '%B %d, %Y')`")
+[//]: # cheat sheet: https://www.rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf
+
+\begin{center}
+\begin{Large}
+\vskip1.5em
+Humboldt-Universit{\"a}t zu Berlin \\ \vspace{0.05 cm}
+School of Business and Economics \\ \vspace{0.05 cm}
+Dr. rer. nat. Sigbert Klinke \\ \vspace{0.05 cm}
+Chair of Statistics \\ \vspace{0.05 cm}
+\vspace{0.6 cm}
+in fulfillment of the requirements \\ \vspace{0.05 cm}
+for Data Analysis I \\
+\vspace{0.6 cm}
+\today
+\end{Large}
+\end{center}
+
+\thispagestyle{empty}
+
+\newpage
+\pagestyle{plain}
+\pagenumbering{roman}
+\setcounter{page}{1} 
+
+\newpage
+\doublespacing
+\tableofcontents
+\onehalfspacing
+\doublespacing
+
+\newpage
+\addcontentsline{toc}{section}{List of Tables}
+\listoftables
+
+\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+
+\newpage
+\pagestyle{plain}
+\setcounter{page}{1}
+\pagenumbering{arabic} 
+\newpage 
+
+```{r setup, include=FALSE}
+
+library("knitcitations")
+bibliography(sorting = 'nty')
+
+#installing/loading the package:
+#if(!require(installr)) { install.packages("installr"); require(installr)}
+#library("outliers")
+
+knitr::opts_chunk$set(echo = T)
+
+#word count (Tools --> Addins --> Browse Addins)
+#devtools::install_github("benmarwick/wordcountaddin",  type = "source", dependencies = TRUE)
+#wordcountaddin:::text_stats()
+
+'library(knitr)
+if(is_latex_output()) {
+  plot_default <- knit_hooks$get("plot")
+  knit_hooks$set(plot = function(x, options) { 
+    x <- c(plot_default(x, options), "\\vspace{25pt}")
+  })
+}'
+```
+
+
+```{r data, include=F}
+setwd("/Users/Bisa/Documents/Studium/Masterstudium/2. Semester/Datenanalyse I/Hausarbeit/Final")
+
+prog <- read.csv2(file = "Wahlprognosen2019.csv", header = T, sep = ";")
+wahl <- prog[1,]
+prog <- prog[which(prog$Methode != "" & prog$Methode..nummerisch. != 4),]
+prog <- droplevels(prog)
+colnames(prog)[7] <- c("CDU/CSU")
+colnames(prog)[12] <- c("Die Linke")
+colnames(prog)[13] <- c("Others")
+```
+
+# Introduction
+
+The relevance of election polls increases steadily since they can be used to forecast the outcome of elections. Forecasting the vote shares of the parties participating in an election can demonstrate shifting voting behavior for instance. Hence, political parties can use this information to react appropriately and adapt their campaign strategies and political programs to the current sentiment of (their) voters. The closer the election day gets, the smaller the lags between polls because of the increasing political and public interest \citep{huber2018role}. 
+
+In order to conduct a poll as representative as possible, different collection methods can be applied. Online panels and phone surveys which also have been used for the collection of the underlying data are just two examples among others. However, the available data is not very robust since the number of state-wide conducted election polls per election for the past European elections was smaller than 30 and many variables, such as the time and the collection methods varied (cp. \cite{wahl}). This affects the robustness of the distribution as well as the normality which is assumed by many analysis methods that can be used for testing equality in mean and forecasting for instance. 
+
+The objection of this paper is to present and discuss methods that can be used to transform non-normal distribution. Additionally, a test to evaluate the forecasting power of the polls that were realized during the pre-election period is conducted.
+
+The paper is organized as follows. The chapter dealing with the data describes the collection process, the quality of the data as well as the data preparation and cleansing process. Afterwards, the analysis is applied. It starts with descriptive statistics such as the central tendencies, followed by a profound analysis regarding the normality of the timely development of the vote shares for each party and finishes with a bi-variate analysis of the predicted means compared to the true mean (results of the election). The fourth chapter discusses potential bias and further analysis possibilities in detail. Finally yet importantly, the analysis and its results are summed up and a final evaluation is given.
+
+\newpage
+
+# Data
+
+The following chapter provides general information about the data set and how it has been designed. Additionally, the data collection process is described and the quality of the data is briefly discussed as well as potential bias resulting from the data processing, collection or alike. For a detailed discussion see chapter \ref{dis}.
+
+## Data Set
+
+The data set consists of a collection of primary data predicting the voting behavior of a representative sample of German citizens regarding the European election 2019. The data are mainly sourced from [Wahlrecht.de](http://www.wahlrecht.de/umfragen/europawahl.htm#fn-o) which is a website that collects all conducted surveys and panels during the pre-election period. The methods that have been used in order to collect the data are briefly described in \ref{Sec:Data Collection}. 
+
+The data set consists of 26 observations (plus the result of the European Election 2019) and 14 variables:
+\begin{itemize}
+  \item Nominal scaled data such as the survey institutes, the contracting authorities and the collection methods
+  \item Interval scaled data such as the date of the collection (cp. among others \cite{datescale}, also it is possible to calculate with the dates after the \textit{as.Date} function is applied like it is done for the analysis of this paper; moreover, it has no true zero point since dates can also be BC)
+  \item Ratio scaled data such as the share of votes for the different parties
+\end{itemize}
+
+The first observation was recorded on the 25\textsuperscript{th} of October 2018 and the last on the 24\textsuperscript{th} of May 2019.
+
+## Data Collection \label{Sec:Data Collection}
+
+The poll data have been collected via online panels and phone surveys, written polls are not mentioned. On average 2431 participants responded to the online panels and 1383 people have been interviewed on the phone \citep{wahl}.
+
+```{r surveystat, include=FALSE}
+#sources: marketing book (online panel/ cati), link zur website europawahl
+online <- NULL
+phone <- NULL
+other <- NULL
+j <- 1
+for(i in 1:nrow(prog)){
+  if (prog$Methode[i] == "Online-Panel") {
+    no_on <- as.numeric(as.character(prog$Anzahl.der.Befragten[i]))
+    online <- rbind(online, no_on)
+  } else if (prog$Methode[i] == "Telefon") {
+    no_tel <- as.numeric(as.character(prog$Anzahl.der.Befragten[i]))
+    phone <- rbind(phone, no_tel)
+  } else {
+    rest <- as.numeric(as.character(prog$Anzahl.der.Befragten[i]))
+    other <- rbind(other, rest)
+  }
+  j <- j + 1
+}
+print(mean(online, na.rm = T))
+print(mean(phone, na.rm = T))
+```
+
+The online panel has been conducted with pre-screened respondents who have registered to participate in the panel. Panels are constructed with the focus to poll a representative sample of participants based on demographics. The sample as well as the questions stay the same during the time the panel is conducted \citep{bruhn2013marketing}. In the underlying data set the respondents of the online panels vary between survey institutes. Still, the online panels of the same institute commissioned by the same contracting authority can give an indication of the development in the voting behavior of the respondents over time. As an example, the online panel of BILD (7 observations) shows the following changes in the voting behavior of the respondents during the pre-election period:
+
+```{r onlinepanel, include = FALSE}
+
+Sys.setlocale("LC_TIME", "C")
+prog_online <- prog[which(prog$Umfrageinstitut == "INSA" & prog$Auftraggeber == "BILD"), ]
+prog_online$Datum <- as.Date(prog_online$Datum, format = "%Y-%m-%d")
+```
+
+```{r test, echo = F, fig.cap = "Results of the online panel conducted by INSA from December 2018 to May 2019 (commissioned by BILD)"}
+par(mfrow=c(2,3))
+j <- 7
+for (i in prog_online[7:12]){
+  plot(prog_online[[j]] ~ prog_online$Datum, xlim=c(min(prog_online$Datum),as.Date("2019-06-01")), 
+     ylim = c(min(prog_online[[j]])-0.02, max(prog_online[[j]]+0.02)), type = "o", ylab = paste("Votes for", colnames(prog_online[j]),"(in %)", sep = " "), 
+     xlab = "Date of the Survey", pch = "o", bty = "l", col = c("blue"))
+  j <- j + 1
+}
+```
+
+In contrast to the online panel, the participants of the phone survey have been chosen randomly and an oral survey via phone called Computer Assisted Telephone Interview (CATI) has been conducted \citep{wahl}. The computer chooses randomly the numbers to call. An interviewer asks the respondents a given set of questions shown by the computer and inserts the answers simultaneously into a computer program that decides which questions should be asked next depending on the previous responses \citep{bruhn2013marketing}.
+
+The survey institute Ipsos conducted a CATI and an online panel simultaneously. All other institute used only one method to predict the voting behavior of the respondents.
+
+## Data Quality
+
+This subsection is split into two parts. Firstly, the primary data is evaluated regarding their data and collection quality. Secondly, the construction of the data set and its quality is discussed.
+
+### Survey and Panel Data
+
+Both methods -- online panel and CATI -- have several advantages but also disadvantages that might lead to biased data.
+
+A disadvantage of the online panel is the lack of representativeness. The following factors can have a negative effect on the representativeness of the panel \citep{esch2013marketing}: 
+\begin{itemize}
+  \item coverage: due to many different characteristics, it is really hard to pool a mix of all kinds of people in one panel, especially if the panel is online e.g. old people might be less likely to participate because of lacking technology
+  \item refusal: people might change their mind and stop participating
+  \item panel mortality: respondents might move or die during the panel
+\end{itemize}
+
+Moreover, internal validity can be interfered by people responding differently due to social desirability for instance \citep{bruhn2013marketing}. 
+
+The CATI increases the responsiveness of some target groups \citep{meffert2018marketing}. In the case of the underlying analysis, this might lead to a systematic bias regarding the representativeness of the survey since the target group is supposed to be a representative sample of the German's voting behavior.
+
+Even though online panels and CATIs both have difficulties with the representativeness, they are adequate methods to capture the voting behavior at the time. Alternatives like personal interviews are not only biased regarding the representativeness (less people and certain groups of people are more likely to participate, e.g. students and retired people because they are more time flexible) but also due to the personal interaction (more likely that uncomfortable questions are not answered correctly, e.g. if someone votes for right-winged parties, due to, among others reasons, social desirability).
+
+The advantage of both methods are the collection time. A large quantity of data can be collected in a short period of time \citep{bruhn2013marketing}.
+
+Conclusively, the data are a good fit for the intended use and the data quality is sufficient to elaborate a profound analysis since it is not possible to interview all German citizens that are eligible to vote. Both methods are assumed to lead to representative samples.
+
+### Composed Data Set \label{DataSet}
+
+Since the purpose of the underlying paper is to analyze the predictive power of the data collection methods and to compare them, some models, that are used, assume independence among the variables and at least an approximate normal distribution. In the case of the present analysis, a normal distribution cannot be derived with help from the central limit theorem since the number of observations is below 30. Furthermore, the percentages of the votes for the parties add up to a sum of 1 which indicates a dependence of the variables. The variable \textit{others} catches all votes of smaller parties and is considered to be "the rest". The percentage of votes of the variables which represent a single party do not add up to the sum of 1 without "the rest" and therefore, no complete dependence is assumed.
+
+The quality of the data is also sufficient to be used for the analysis and discussed in detail in chapter \ref{dis}.
+
+## Data Preparation and Cleansing \label{Clean and prep}
+
+In the following subsection the data preparation is explained, missing values are explored and imputations are discussed. Moreover, anomalous values are evaluated and corrected.
+
+### Data Preparation
+
+For practical reasons the results of the European election 2019 are separated from the original data set; thus, it is not needed for the most parts of the analysis and this way it does not have to be taken out of the data set every time.
+
+Also, the column that contains the dates is transformed with the \textit{as.Date function} to a date format that is recognized by R. This transformation is essential for adjusting some graphics computed in \ref{Sec:analysis}.
+
+```{r as.date func, include = FALSE}
+prog$Datum <- as.Date(prog$Datum, format = "%Y-%m-%d")
+```
+
+### Missing Data
+
+```{r data imputation, include = FALSE}
+  #impute missing contracting authorities
+prog$Auftraggeber <- as.character(prog$Auftraggeber)
+for (j in 1:nrow(prog)) {
+  if (prog$Umfrageinstitut[j] == "Civey" & prog$Auftraggeber[j] == "") {
+    prog$Auftraggeber[j] <- "Civey" 
+  } else if (prog$Umfrageinstitut[j] == "Politbarometer" & prog$Auftraggeber[j] == "") {
+    prog$Auftraggeber[j] <- "ZDF"
+    prog$Umfrageinstitut[j] <- "Forschungsgruppe Wahlen"
+  } 
+}
+
+  #delete Sat.1 Bayner (Nur Bayern)
+prog <- prog[which(prog$Umfrageinstitut != "Sat.1 Bayern (Nur Bayern)"), ]
+
+  #impute missing method
+for (j in 1:nrow(prog)) {
+  if(prog$Auftraggeber[j] == "ZDF" & prog$Methode[j] == "keine Angabe") {
+  prog$Methode[j] <- "Telefon"
+  prog$Methode..nummerisch.[j] <- 1
+  }
+}
+
+  #impute missing number of respondents
+prog$Anzahl.der.Befragten <- as.numeric(as.character(prog$Anzahl.der.Befragten))
+for (j in 1:nrow(prog)) {
+  if (prog$Methode[j] == "Online-Panel" & is.na(prog$Anzahl.der.Befragten[j])) {
+    prog$Anzahl.der.Befragten[j] <- mean(online, na.rm = T)
+  } else if (prog$Methode[j] == "Telefon" & is.na(prog$Anzahl.der.Befragten[j])) {
+    prog$Anzahl.der.Befragten[j] <- mean(phone, na.rm = T)
+  } 
+}
+
+  #striking value (sum != 1)
+for (j in 1:nrow(prog)) {
+ if (prog$Summe[j] != 1) {
+   miss <- 1 - prog$Summe[j]
+   prog$Others[j] <- prog$Others[j] + miss
+   prog$Summe[j] <- 1
+ } 
+}
+
+```
+
+Missing values occur in the variables regarding the contracting authority, used collection methods and number of respondents. Due to less information, the type of missing values cannot be specified.
+
+\begin{itemize}
+  \item Contracting Authorities
+\end{itemize}
+
+The following institutes show missing values regarding their contracting authority: Politbarometer, Sat.1 Bayern (Nur Bayern) and Civey
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ll} \hline\hline
+         Survey Institute & Missingness Treatment \\
+         \hline
+         Forschungsgruppe Wahlen & ZDF \\
+         Sat.1 Bayern (Nur Bayern) & \textit{delete observation} \\
+         Civey & Civey \\
+         \hline\hline
+    \end{tabular}
+    \caption{Treatment of missing values of the contracting authority}
+    \label{tab:clean}
+\end{table}
+
+The reason why ZDF is imputed for the missing contracting authority is that the Forschungsgruppe Wahlen conducts the surveys for Politbarometer which is a TV show of the ZDF \citep{barometer}.
+
+Since the poll Sat.1 Bayern (Nur Bayern) is only relevant for the state of Bayern which is known to be more conservative than the rest of Germany (e.g. the upper extreme value of CDU/CSU is presented by this observation) and therefore not representative, the observation introduces bias and is removed as a consequence.
+
+Lastly, for a conducted survey from Civey the contracting party is also missing. Civey does neither belong to any contracting authority nor cooperate with a specific one regularly; so it can be assumed that they acted of their own accord. 
+
+\begin{itemize}
+ \item Number of Respondents
+\end{itemize}
+
+Regarding the missingness of the number of respondents, following institutes are affected: Civey and Forschungsgruppe Wahlen. Since the observations regarding Civey are online panels, the mean of the online panels is imputed. For the Forschungsgruppe Wahlen, which all conducted surveys via CATI, the mean of the phone surveys is imputed.
+
+\begin{itemize}
+  \item Methods
+\end{itemize}
+
+The only missing method is the one for the former Politbarometer observation. But since the Forschungsgruppe Wahlen always applied CATI as a method of data collection, the method \textit{phone} is imputed.
+
+### Anomalous Values
+
+If all votes for the parties per observation are summed up, it is supposed to represent 100\% of the votes. One observation shows only a sum of 99.5\%. Because no value for the parties acts as an outlier and as an extreme value, the missing 0.05\% are added to the "rest" described as \textit{others}.
+
+\newpage
+
+# Analysis \label{Sec:analysis}
+
+The first part of the analysis deals with descriptive statistics. The central tendencies (median, mean, mode) and potential outliers are briefly described. However, the focus of this subsection is the distribution of the votes for the parties and the transformation of variables. Last but not least, a one-sample t-test is applied in order to evaluate the predictive power of the pre-election surveys.
+
+## Descriptive Statistics \label{ct}
+
+```{r summary, include=FALSE}
+summary(prog)
+# Others & 0.08864 & 0.09000 \\
+```
+
+After data cleansing and preparation in \ref{Clean and prep}, the data set includes surveys of six different contracting authorities. \textit{Forschungsgruppe Wahlen} and \textit{INSA} are the most frequent values with eight observations. The methods almost split the data set in half -- 11 of the observations were conducted by online panels and 13 surveys have been done by phone. Only once the methods were combined.
+
+The mean and median of the votes for the parties are the following:
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lll} \hline\hline
+         Party & Mean & Median \\
+         \hline
+         CDU/CSU & 0.3032 & 0.3000 \\
+         SPD & 0.1682 & 0.1700 \\
+         Grüne & 0.182 & 0.180  \\
+         FDP & 0.07072 & 0.07000 \\
+         AfD & 0.1151 & 0.1200 \\
+         Die Linke & 0.07208 & 0.07000 \\
+         \hline\hline
+    \end{tabular}
+    \caption{Mean and median for all variables referring to a party}
+    \label{tab:meanmedianparty}
+\end{table}
+
+In average 30\% of all respondents voted for the CDU/CSU. The second strongest party was the Grüne with approximately 18\%, followed by the SPD with about 17\%. The median is very close to the mean. The median and mean deviate the most for the AfD with about 0.0049. 
+
+A deviation between those central tendencies can have several reasons such as extreme values. In contrast to the mean, the median is a robust location parameter which means that it is not affected by single outliers \citep{schlittgen2012einfuhrung}. The box plot is a possibility, among others, to visualize potential outliers:
+
+```{r outliers, echo = F, fig.cap = "Visualization of potential outliers via box plots"}
+
+par(mfrow=c(2,3), plt=c(0.1,0.9,0.2,0.7))
+
+j <- 7
+for (i in prog[7:12]){
+  boxplot(prog[[j]], horizontal = T, main = colnames(prog[j]))
+  
+  j <- j + 1
+}
+```
+
+The box shows the range of 50\% of the observations which is called the interquartile range (IQR). The upper line of the box specifies the 3\textsuperscript{rd} quartile (75\%), the thick black line shows the median (50\%) and the lower line marks the 1\textsuperscript{st} quartile (25\%). The whiskers highlight the extreme values that are above Q\textsubscript{3} + 1.5 IQR or below Q\textsubscript{1} – 1.5 IQR. Values that are outside the range of the whiskers indicate outliers \citep{hardle2012applied}.
+
+The box plots of the observations for the parties are quite different. For example, the SPD box plot demonstrates a rather symmetric box plot which indicates a normal distribution. The median is located in the middle of the IQR, no potential outliers exist and the whiskers have about the same length. In contrast, the box plot of the Grüne shows a median that is about the same than the 25\% percentile which leads to the conclusion that the party must have many observations with the value of about 0.18. A box plot that it located on one side of the graphic such as the box of Die Linke indicates a skewed distribution. The box plot of Die Linke has no whiskers on the left side which means that there are no extreme values but rather many similar values. 50\% of the observed values are between 0.06 and 0.07 whether the other 50\% are located between 0.07 and 0.10; thus, a much wider range. This leads to the assumption of a right-skewed distribution. 
+
+## Normality
+
+In this subsection the distribution is evaluated regarding normality and transformation methods are presented and discussed.
+
+### Shapiro-Wilk Test \label{sw-test}
+
+There are many different normality tests. One powerful test is the Shaphiro-Wilk test which is especially suitable for small data sets even though the test power decreases rapidly when having a data set with less than 30 observations. The values of W are between 0 and 1. A small W value leads to a rejection of the null hypothesis \citep{razali2011power}.
+
+The most commonly used significance levels are 1\%, 5\% and 10\%. The significance levels represent the probability of the occurrence of an error of type I ($\alpha$) which means that H\textsubscript{0} is falsely rejected \citep{kim2015choose}. 
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ll} \hline\hline
+         Significance Level & Critical Value of W\\
+         \hline
+         0.01 & 0.888 \\
+         0.05 & 0.918 \\
+         0.1 & 0.931 \\
+         \hline\hline
+    \end{tabular}
+    \caption{Critical values of W of the Shaphiro-Wilk test with 25 observations and based on the significance levels of 1\%, 5\% and 10\% \citep{shapiro1965analysis}}
+    \label{tab:critvaluesw}
+\end{table}
+
+In the case of the underlying analysis, this would imply that the variable is not normally distributed, even though it is. Since the purpose of testing for normality is the need to verify the assumption of a normal distribution for the following test in \ref{test}, an error of type II ($\beta$) is a bigger issue than type I ($\alpha$). An error of type II does not reject the null hypothesis and a normally distributed variable is falsely assumed \citep{kim2015choose}.
+
+According to \cite{leamer1978specification}, the significance level should be a decreasing function of the sample size. The sample size of the data set is with 25 observations quite small, which implies a higher significance level in order to decrease the probability of the occurrence of an error of type II (cp. table 1 in \cite{kim2015choose}). Therefore, the highest common significance level of 10\% is chosen for the interpretation of the results of the Kolmogorov-Smirnov-Test.
+
+```{r SW test, include=FALSE}
+  #Shapiro-Wilk test
+j <- 7
+for (i in prog[7:13]){
+  print(shapiro.test(prog[[j]]))
+  j <- j + 1
+}
+```
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{llll} \hline\hline
+         Party & Value of W & p-value & H\textsubscript{0} rejected\\
+         \hline
+         CDU/CSU & 0.91863 & 0.04768 & yes\\
+         SPD & 0.92876 & 0.08138 & yes\\
+         Grüne & 0.89381 & 0.01348 & yes\\
+         FDP & 0.94203 & 0.1649 & no \\
+         AfD & 0.87191 & 0.004727 & yes\\
+         Die Linke & 0.87178 & 0.004697 & yes \\
+         \hline\hline
+    \end{tabular}
+    \caption{Results of the Shaphiro-Wilk test based on a significance level of 10\%}
+    \label{tab:swtest}
+\end{table}
+
+With a significance level of 10\%, the W-value needs to be below 0.931 in order to reject the null hypothesis. Thus, the null hypothesis is rejected for almost all variables, except FDP, which indicates that the variables are not normally distributed.
+
+The Shaphiro-Wilk test is a fitting test for dealing with skewed data as well as platykurtic distributions but it is not suitable for leptokurtic distributions. Furthermore, the probability of a rejection of the null hypothesis is more likely if the data contains ties since the Shaphiro-Wilk test is sensitive to them \citep{royston1992approximating}. Due to those weaknesses, the results of the Shaphiro-Wilk test are also checked visually with the help of histograms.
+
+
+```{r hist, echo = F, fig.cap = "Histograms for each party presenting the distribution of the percentages of votes"}
+
+par(mfrow=c(2,3))
+    #mar=c(2, 4, 2, 1) + 0.1, omi = c(0.1,0.1,0.1,0.1))
+
+j <- 7
+for (i in prog[7:12]){
+  hist(prog[[j]], freq = FALSE, main = paste(colnames(prog[j])), font.main = 2,
+      font.sub = 2, breaks=seq(0,0.4,0.01),
+      xlab = "Percentage of Votes", xlim = c(min(prog[[j]]-0.03), max(prog[[j]]+0.03)))
+       
+  x <- seq(min(prog[j])-0.03, max(prog[j])+0.03, length.out=200)
+  lines(x, dnorm(x, mean=mean(prog[[j]]), sd=sd(prog[[j]])))
+  
+  j <- j + 1
+}
+```
+
+The histograms support the result of the Shaphiro-Wilk test. The CDU/CSU variable is also multimodal and the observations of the AfD is distributed bimodally. The other variable are unimodal. For the non-unimodal distributions the central tendencies in \ref{ct} might have been misleading. But since it is not relevant for the further analysis, it will not be discussed.
+
+Conclusively, the distributions for the all variables (except FDP) does not meet the assumptions of normality that is needed for most parametric tests.
+
+### Transformation \label{transformations}
+
+```{r transformation code, echo = F, include=FALSE}
+#Transformation
+
+library("car")
+transform <- function(x){
+  
+  transdata <- NULL
+  j <- 7
+  for (i in prog[7:13]){
+    spcrim <- basicPower(prog[[j]], x)
+    transdata <- cbind(transdata, spcrim)
+    j <- j + 1
+  }
+  
+  trans <- as.data.frame(transdata)
+  colnames(trans) <- colnames(prog[7:13])
+    
+  j <- 1
+  for (i in trans[1:6]){
+      print(shapiro.test(trans[[j]]))
+      j <- j + 1
+    }
+    
+  name <- paste("λ_", x, "_trans", sep ="")
+  assign(name, trans)
+  
+}
+
+#Reciprocal Transformation (1/Y) x = -1
+x <- -1
+
+test <- transform(x)
+
+name <- paste("λ_", x, "_trans", sep ="")
+assign(name, test)
+
+#logistic (for right-skewed distribution) x = 0
+x <- 0
+
+test <- transform(x)
+
+name <- paste("λ_", x, "_trans", sep ="")
+assign(name, test)
+
+#squared (for left-skewed distribution) x = 2
+x <- 2
+
+test <- transform(x)
+
+name <- paste("λ_", x, "_trans", sep ="")
+assign(name, test)
+  #result different
+
+#histogramme für 4 transformationen + no transformation pro partei, dann beschreiben und kaptiel abschließen
+
+```
+
+With transforming non-normal distributed data, an approximate normal distribution can be achieved. In order to find a suitable transformation method, three different transformation are applied and the results are shown in table \ref{tab:trans}. 
+
+Squared transformation is especially appropriate for left-skewed data \citep{kirchner2001data}. In contrast, for right-skewed data a logarithmic transformation is more suitable \citep{johnson2002applied}. Besides reducing skewness of the data, it can also stabilize the variance \citep{fernandez1992residual}. As well as the log transformation, the reciprocal transformation can be used for right-skewed data. However, its real advantage is the interpretability which is perceptibly easier than for the other transformations (cp. \cite{wiki:xxx}). 
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lllll} \hline\hline
+         Party & Not transformed & Reciprocal & Logistic & Squared \\
+         \hline
+         CDU/CSU & 0.04768 & \textbf{0.09462} & 0.07034 & 0.05856 \\
+         SPD & \textbf{0.08138} & 0.06411 & 0.07592 & 0.07961 \\
+         Grüne & \textbf{0.01348} & 0.001812 & 0.005258 & 0.008575 \\
+         FDP & 0.1649 & 0.08956 & 0.2004 & \textbf{0.206} \\
+         AfD & 0.004727 & \textbf{0.02948} & 0.017 & 0.009759 \\
+         Die Linke & 0.004697 & \textbf{0.01604} & 0.01137 & 0.007788 \\
+         \hline\hline
+    \end{tabular}
+    \caption{Comparison of the p-values of different transformation methods}
+    \label{tab:trans}
+\end{table}
+
+The bold marked values are the values where the lowest level of significance can be applied without rejecting the null hypothesis. When applying a significance level of 1\%, the null hypothesis which assumes a normal distribution cannot be rejected. Even though, a significance level of 1\% increases the probability of an error of type II, it is reasonable to apply it in this context in order to hold the necessary assumption for normality. 
+
+As it can be observed in table \ref{tab:trans}, not all variables have to be transformed. With a significance level of 1\% the null hypothesis of not only the SPD but also the Grüne cannot be rejected which indicates that the assumption of normality holds. Also the p-value of the non-transformed data of the FDP is high enough and the assumption of normality cannot be rejected. The data for CDU/CSU, AfD and Die Linke have to be transformed via a reciprocal transformation. Because the variables will separately be tested, they do not have to have the same scale. For the analysis of CDU/CSU, AfD and Die Linke, the results of the European election will also be transformed via reciprocal transformation in order to have the same scale when conducting the one-sample t-test in \ref{test}. 
+
+The resulting distributions of the different transformation methods for each variable are presented in figure \ref{fig:figCDU} to \ref{fig:figLinke} attached to the appendix.
+
+```{r trans wahl, echo = F, include=FALSE}
+library("car")
+CDU <- basicPower(wahl$CDU.CSU, -1)
+AfD <- basicPower(wahl$AfD, -1)
+Linke <- basicPower(wahl$Die.Linke, -1)
+wahl_reci <- data.frame(CDU, AfD, Linke)
+```
+
+In conclusion, due to the transformation of some variables and the shift of the significance level from 10\% to 1\%, the assumption regarding normality holds or rather the null hypothesis cannot be rejected.
+
+## One-Sample t-Test \label{test}
+
+The one-sample t-test is suitable for testing a sample mean against the true mean \citep{kronthaler2014statistik}. The true mean in the underlying analysis is the actual result of the European election 2019. Thus, the null hypothesis states that the pre-election surveys predicted on average the true mean. The alternative hypothesis implies that the average mean of the survey per party is above or below the result of the European election.
+
+```{r one-sample, echo = F, include=FALSE}
+#one sample t-test
+reci <- `λ_-1_trans`[c(1,5:6)]
+
+CDU <- basicPower(wahl$CDU.CSU, -1)
+AfD <- basicPower(wahl$AfD, -1)
+Linke <- basicPower(wahl$Die.Linke, -1)
+wahl_reci <- data.frame(CDU, AfD, Linke)
+
+no_trans <- prog[c(8:10)]
+wahl_notrans <- wahl[c(8:10)]
+
+  #test for reci (CDU/CSU, AfD, Linke)
+j <- 1
+for(i in reci) {
+  print(t.test(reci[[j]], mu=wahl_reci[[j]]))
+  j <- j + 1 
+}
+  #test for no trans (SPD, Grüne, FDP)
+j <- 1
+for(i in no_trans) {
+  print(t.test(no_trans[[j]], mu=wahl_notrans[[j]]))
+  j <- j + 1 
+}
+```
+
+The following table shows the results of the conducted one-sample t-test. The p-values are given and the outcome regarding the rejection of the null hypothesis under a significance level of 5\% is also presented:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lll} \hline\hline
+         Party & p-value & H\textsubscript{0} rejected\\
+         \hline
+         CDU/CSU & 0.009544 & yes\\
+         SPD & 0.0004249 & yes \\
+         Grüne & 3.408e-10 & yes \\
+         FDP & 3.053e-08 & yes \\
+         AfD & 0.2474 & no \\
+         Die Linke & 6.568e-10 & yes \\
+         \hline\hline
+    \end{tabular}
+    \caption{Results of the one-sample t-test for all parties}
+    \label{tab:onesample}
+\end{table}
+
+Except for the AfD, the mean of all variables differs significantly from the true mean. This indicates that the predictive power of the pre-election surveys might not be very well. Factors that might have biased the analysis are discussed in detail in \ref{dis}.
+
+\newpage
+
+# Discussion \label{dis}
+
+This section deals with potential bias that have influenced the outcome of the analysis. Also, decisions that have been made are evaluated and reasonable further analysis techniques are presented.
+
+Bias influencing the analysis might have been introduced by the data collection (online vs. phone), by the composed data set (small sample, dependency between variables) or during the analysis (such as the assumption of normality for the one-sample t-test, low significance levels leading to an increasing risk of a $\beta$-error).
+
+\begin{itemize}
+\item Data Collection
+\end{itemize}
+
+As described in \ref{Sec:Data Collection}, the data have been collected via online panels and phone surveys. General advantages or disadvantages that lead to bias during the collection process have also be discussed in \ref{Sec:Data Collection}. The outcomes of both collection methods are quite different: 
+
+```{r online phone, echo = F, fig.cap = "\\label{fig:onlinevsphone}Visualization of the results of the different collection methods -- online (black) vs. phone (blue) vs. actual result (red)"}
+
+#Analyse der verschiedenen Umfragemethoden für alle Parteien
+prog_sub <- prog[which(prog$Methode..nummerisch. == 1 | prog$Methode..nummerisch. == 2), ]
+par(mfrow=c(2,3))
+j <- 7
+for (i in prog_sub[7:12]){
+  plot(prog_sub[[j]] ~ prog_sub$Datum, ylim = c(0, 0.35), bty="l", ylab = paste("Votes for", colnames(prog_sub[j]), "(in %)", sep = " "), 
+       xlab = "Date of the Survey", pch = 16, col = c("blue", "black")[prog_sub$Methode..nummerisch.])
+  abline(h = wahl[j], col = "red")
+  j <- j+1
+}
+
+par(xpd=TRUE, mfrow = c(1,1))
+legend("bottomright", inset=c(-0.17,0),legend = c("Phone", "Online"), col = c("blue", "black"), pch = 16,
+       cex = 0.7, bty = "n", x.intersp=0.5, y.intersp=0.9)
+
+```
+
+\newpage
+As shown in figure \ref{fig:onlinevsphone} the prediction between online and phone varies a lot. For example: the phnone surveys clearly overestimated the percentage of votes for the SPD whether the online panels were quite close to the actual election result. Also, the online panels have already started in October 2018 while the phone surveys started in February 2019. The predictions in 2018 vary a lot from the true mean. Therefore, a next analysis step could be to separate the observations regarding their collection methods and analysis the results separately. However, also testing this would exceed the scope of the paper. Still, the "non-separation" of the methods might have introduced bias.
+
+\begin{itemize}
+\item Data Set
+\end{itemize}
+
+The small sample leads to many difficulties regarding the normality (central limit theorem cannot be applied due to n<30) and power of the tests. Unfortunately, not more than the given forecasts have been found on the internet. As a next step, one could try to find further predictions in other sources such as offline newspapers or engage survey institutes during the next election period by oneself.
+
+Another difficulty is the dependency of the variables. In chapter \ref{DataSet} independence was assumed. The argument for this assumption was "having a rest" which are people voting for other parties. Thus, the percentage of the six most voted parties does not have to end up to a 100\%. Still, the parties are closely connected to each other and there are a lot of "Wechselwähler". The term "Wechselwähler" or also "Wählerwanderung" means that voters are switching between parties, e.g. 260.000 voters of the CDU/CSU were lost to the AfD in the European election 2019 \citep{waehlerwanderung}. Therefore, it is often the case, that the votes for one party decrease and those lost votes make the votes of another party increase. Conclusively, a new approach for a further analysis could be to investigate the data set for (in)dependencies.
+
+\begin{itemize}
+\item{Analysis}
+\end{itemize}
+
+In \ref{transformations} a significance level of 1\% was chosen in order to be able to proceed with the further analysis. By doing so, the probability of an $\beta$-error was increased immensely. Thus, it is very likely that a normal distribution was falsely assumed. To handle a violated assumption of normality, different tests should be applied that do not require a normal distribution like the Wilcoxon-Test which is suitable for non-distributed, metric data and also small samples \citep{kronthaler2014statistik}. Another possibility is the application of non-parametric tests \citep{nonpara}.
+
+\newpage
+
+# Conclusion
+
+The descriptive statistics in \ref{ct} indicated that the percentages of the votes for every party are not normally distributed which was tested and confirmed by a normality test in \ref{sw-test}. The transformation of the data resulted in an approximate normal distribution but only with accepting a high probability of a $\beta$-error.
+
+Under the assumption of normality the one-sample t-test showed that the mean of each variable of the forecasts is not equal to the mean of the actual result of the European election in 2019. Thus, the predictive accuracy is not a 100\% precise. However, the actual means of the forecasts are not totally off which can be observed in figure \ref{fig:onlinevsphone}.
+
+But this result has to be treated with caution since it builds up on potentially strong biased data which was discussed in section \ref{dis}. Hence, further analysis have to be conducted in order to give a reliable statement about the predictive power of the polls.
+
+To put it in a nutshell, the underlying analysis is not sufficient in order to evaluate the election polls and their power properly but it can function as a basis for further analysis.
+
+\newpage
+\addcontentsline{toc}{section}{References}
+\bibliography{ref_DAI.bib}
+
+\onehalfspacing
+
+\newpage
+\addcontentsline{toc}{section}{Appendix}
+[///]: # \input{appendix.tex}
+
+\begin{LARGE}
+\textbf{Appendix}
+\vskip1em
+\end{LARGE}
+
+```{r hist trans CDU/CSU, echo = F, fig.cap = "\\label{fig:figCDU}Visualization of the results of the applied transformation methods for the CDU/CSU", fig.asp = .62}
+trans_all <- list(`λ_-1_trans`, `λ_0_trans`, `λ_2_trans`)
+prog_parties <- prog[7:13]
+
+par(mfrow=c(2,2))
+j <- 1
+name <- c("Reciprocal", "Logistic", "Squared")
+z <- 1
+
+hist(prog_parties[[j]], freq = FALSE, font.main = 2,
+     font.sub = 2, main = paste("No Transformation"),
+     xlab = "Percentage of Votes", xlim = c(min(prog_parties[[j]]-0.03), max(prog_parties[[j]]+0.03)))
+
+      x <- seq(min(prog_parties[j])-0.03, max(prog_parties[j])+0.03, length.out=200)
+    lines(x, dnorm(x, mean=mean(prog_parties[[j]]), sd=sd(prog_parties[[j]])))
+
+for(i in trans_all) {
+
+  hist(i[[j]], freq = FALSE, font.main = 2, font.sub = 2, main = paste(name[z], "Transformation"),
+       xlab = "Scale of transformed data", xlim = c(min(i[[j]]-0.03), max(i[[j]]+0.03)))
+  
+  x <- seq(min(i[[j]])-0.03, max(i[[j]])+0.03, length.out=200)
+  lines(x, dnorm(x, mean=mean(i[[j]]), sd=sd(i[[j]])))
+  
+  z <- z + 1
+} 
+
+```
+
+```{r hist trans SPD, echo = F, fig.cap = "Visualization of the results of the applied transformation methods for the SPD", fig.asp = .62}
+trans_all <- list(`λ_-1_trans`, `λ_0_trans`, `λ_2_trans`)
+prog_parties <- prog[7:13]
+
+par(mfrow=c(2,2))
+j <- 2
+name <- c("Reciprocal", "Logistic", "Squared")
+z <- 1
+
+hist(prog_parties[[j]], freq = FALSE, font.main = 2,
+     font.sub = 2, main = paste("No Transformation"),
+     xlab = "Percentage of Votes", xlim = c(min(prog_parties[[j]]-0.03), max(prog_parties[[j]]+0.03)))
+
+      x <- seq(min(prog_parties[j])-0.03, max(prog_parties[j])+0.03, length.out=200)
+    lines(x, dnorm(x, mean=mean(prog_parties[[j]]), sd=sd(prog_parties[[j]])))
+
+for(i in trans_all) {
+
+  hist(i[[j]], freq = FALSE, font.main = 2, font.sub = 2, main = paste(name[z], "Transformation"),
+       xlab = "Scale of transformed data", xlim = c(min(i[[j]]-0.03), max(i[[j]]+0.03)))
+  
+  x <- seq(min(i[[j]])-0.03, max(i[[j]])+0.03, length.out=200)
+  lines(x, dnorm(x, mean=mean(i[[j]]), sd=sd(i[[j]])))
+  
+  z <- z + 1
+} 
+    
+
+```
+
+```{r hist trans Grune, echo = F, fig.cap = "Visualization of the results of the applied transformation methods for the Grüne", fig.asp = .65}
+
+trans_all <- list(`λ_-1_trans`, `λ_0_trans`, `λ_2_trans`)
+prog_parties <- prog[7:13]
+
+par(mfrow=c(2,2))
+name <- c("Reciprocal", "Logistic", "Squared")
+
+j <- 3
+z <- 1
+
+hist(prog_parties[[j]], freq = FALSE, font.main = 2,
+     font.sub = 2, main = paste("No Transformation"),
+     xlab = "Percentage of Votes", xlim = c(min(prog_parties[[j]]-0.03), max(prog_parties[[j]]+0.03)))
+
+      x <- seq(min(prog_parties[j])-0.03, max(prog_parties[j])+0.03, length.out=200)
+    lines(x, dnorm(x, mean=mean(prog_parties[[j]]), sd=sd(prog_parties[[j]])))
+
+for(i in trans_all) {
+
+  hist(i[[j]], freq = FALSE, font.main = 2, font.sub = 2, main = paste(name[z], "Transformation"),
+       xlab = "Scale of transformed data", xlim = c(min(i[[j]]-0.03), max(i[[j]]+0.03)))
+  
+  x <- seq(min(i[[j]])-0.03, max(i[[j]])+0.03, length.out=200)
+  lines(x, dnorm(x, mean=mean(i[[j]]), sd=sd(i[[j]])))
+  
+  z <- z + 1
+} 
+
+```
+
+```{r hist trans FDP, echo = F, fig.cap = "Visualization of the results of the applied transformation methods for the FDP", fig.asp = .65}
+trans_all <- list(`λ_-1_trans`, `λ_0_trans`, `λ_2_trans`)
+prog_parties <- prog[7:13]
+
+par(mfrow=c(2,2))
+name <- c("Reciprocal", "Logistic", "Squared")
+
+j <- 4
+z <- 1
+
+hist(prog_parties[[j]], freq = FALSE, font.main = 2,
+     font.sub = 2, main = paste("No Transformation"),
+     xlab = "Percentage of Votes", xlim = c(min(prog_parties[[j]]-0.03), max(prog_parties[[j]]+0.03)))
+
+      x <- seq(min(prog_parties[j])-0.03, max(prog_parties[j])+0.03, length.out=200)
+    lines(x, dnorm(x, mean=mean(prog_parties[[j]]), sd=sd(prog_parties[[j]])))
+
+for(i in trans_all) {
+
+  hist(i[[j]], freq = FALSE, font.main = 2, font.sub = 2, main = paste(name[z], "Transformation"),
+       xlab = "Scale of transformed data", xlim = c(min(i[[j]]-0.03), max(i[[j]]+0.03)))
+  
+  x <- seq(min(i[[j]])-0.03, max(i[[j]])+0.03, length.out=200)
+  lines(x, dnorm(x, mean=mean(i[[j]]), sd=sd(i[[j]])))
+  
+  z <- z + 1
+} 
+
+
+```
+
+```{r hist trans AfD, echo = F, fig.cap = "Visualization of the results of the applied transformation methods for the AfD",fig.asp = .65}
+trans_all <- list(`λ_-1_trans`, `λ_0_trans`, `λ_2_trans`)
+prog_parties <- prog[7:13]
+
+par(mfrow=c(2,2))
+name <- c("Reciprocal", "Logistic", "Squared")
+
+j <- 5
+z <- 1
+
+hist(prog_parties[[j]], freq = FALSE, font.main = 2,
+     font.sub = 2, main = paste("No Transformation"),
+     xlab = "Percentage of Votes", xlim = c(min(prog_parties[[j]]-0.03), max(prog_parties[[j]]+0.03)))
+
+      x <- seq(min(prog_parties[j])-0.03, max(prog_parties[j])+0.03, length.out=200)
+    lines(x, dnorm(x, mean=mean(prog_parties[[j]]), sd=sd(prog_parties[[j]])))
+
+for(i in trans_all) {
+
+  hist(i[[j]], freq = FALSE, font.main = 2, font.sub = 2, main = paste(name[z], "Transformation"),
+       xlab = "Scale of transformed data", xlim = c(min(i[[j]]-0.03), max(i[[j]]+0.03)))
+  
+  x <- seq(min(i[[j]])-0.03, max(i[[j]])+0.03, length.out=200)
+  lines(x, dnorm(x, mean=mean(i[[j]]), sd=sd(i[[j]])))
+  
+  z <- z + 1
+}
+
+```
+
+```{r hist trans Die Linke, echo = F, fig.cap = "\\label{fig:figLinke}Visualization of the results of the applied transformation methods for Die Linke", fig.asp = .65}
+trans_all <- list(`λ_-1_trans`, `λ_0_trans`, `λ_2_trans`)
+prog_parties <- prog[7:13]
+
+par(mfrow=c(2,2))
+name <- c("Reciprocal", "Logistic", "Squared")
+
+j <- 6
+z <- 1
+
+hist(prog_parties[[j]], freq = FALSE, font.main = 2,
+     font.sub = 2, main = paste("No Transformation"),
+     xlab = "Percentage of Votes", xlim = c(min(prog_parties[[j]]-0.03), max(prog_parties[[j]]+0.03)))
+
+      x <- seq(min(prog_parties[j])-0.03, max(prog_parties[j])+0.03, length.out=200)
+    lines(x, dnorm(x, mean=mean(prog_parties[[j]]), sd=sd(prog_parties[[j]])))
+
+for(i in trans_all) {
+
+  hist(i[[j]], freq = FALSE, font.main = 2, font.sub = 2, main = paste(name[z], "Transformation"),
+       xlab = "Scale of transformed data", xlim = c(min(i[[j]]-0.03), max(i[[j]]+0.03)))
+  
+  x <- seq(min(i[[j]])-0.03, max(i[[j]])+0.03, length.out=200)
+  lines(x, dnorm(x, mean=mean(i[[j]]), sd=sd(i[[j]])))
+  
+  z <- z + 1
+} 
+
+```
+
+\newpage
+\section*{Declaration of Authorship} 
+
+I hereby confirm that I have authored this paper independently and without use of others than the indicated
+sources. All passages which are literally or in general matter
+taken out of publications or other sources are marked as such.
+\vspace{0.5cm}
+
+Berlin, \today \vspace{1cm}
+
+Anna Franziska Bothe
+
