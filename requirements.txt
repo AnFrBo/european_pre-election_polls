@@ -1,0 +1,4 @@
+Besides the default libraries, only two libraries are needed:
+
+library("knitcitations")
+library("car") #for transformation

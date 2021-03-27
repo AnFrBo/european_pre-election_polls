@@ -1,0 +1,9 @@
+Setup
+
+I Download data folder (besides the data set, the HUlogo as well as the .bib file are needed for the execution of the markdown file)
+
+II Set pwd in markdown file to data folder (line 91)
+
+III Get libraries specified in requirements.txt
+
+IV Run markdown file
