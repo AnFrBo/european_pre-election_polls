@@ -5,7 +5,9 @@ The relevance of election polls increases steadily since they can be used to for
 In order to conduct a poll as representative as possible, different collection methods can be applied. Online panels and phone surveys which also have been used for the collection of the underlying data are just two examples among others. However, the available data is not very robust since the number of state-wide conducted election polls per election for the past European elections was smaller than 30 and many variables, such as the time and the collection methods varied (cp. Europawahl [2019]). This affects the robustness of the distribution as well as the normality which is assumed by many analysis methods that
 can be used for testing equality in mean and forecasting for instance.
 
-The objection of this project is to present and discuss methods that can be used to transform non-normal distribution. Additionally, a test to evaluate the forecasting power of the polls that were realized during the pre-election period is conducted.
+The objective of this project is to present and discuss methods that can be used to transform non-normal distribution. Additionally, a test to evaluate the forecasting power of the polls that were realized during the pre-election period is conducted.
+
+The data used for the analysis was collected by myself from the website [Wahlrecht.de](Wahlrecht.de). The first observation was recorded on the 25th of October 2018 and the last on the 24th of May 2019.
 
 ## Organization
 
