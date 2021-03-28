@@ -14,7 +14,7 @@ The data used for the analysis was collected by myself from the website [Wahlrec
 __Author:__ Anna Franziska Bothe <br>
 __Institute:__ Humboldt University Berlin, Ladislaus von Bortkiewicz Chair of Statistics <br>
 __Course:__ Data Analysis I <br> 
-__Semester:__ SS 19 <br>
+__Semester:__ SS 2019 <br>
 
 ## Content
 
